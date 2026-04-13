@@ -8,6 +8,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
+const axios = require('axios'); 
 
 const authRoutes = require('./routes/authRoutes');
 const bookRoutes = require('./routes/bookRoutes');
@@ -58,6 +59,10 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Routes
+app.get('/', (req, res) => {
+  console.log('API request:', req.method, req.url);
+  res.json({ message: 'Library Management API' });
+});
 app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/issues', issueRoutes);
@@ -69,6 +74,8 @@ app.use('/api/admin', adminRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));
 
+app.use("/api", require("./routes/ping_routes"));
+
 // Error handlers
 app.use(notFound);
 app.use(errorHandler);
@@ -79,7 +86,18 @@ require('./cron/reminderJob');
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  console.log(`Server listening at:`);
+  console.log(`→ http://localhost:${PORT}`);
+  // Auto ping to keep Render awake
+  const axios = require('axios');
+  setInterval(async () => {
+    try {
+      await axios.get('https://ku-library-management-backend.onrender.com/api/ping');
+      console.log(`[AutoPing] Successful at ${new Date().toISOString()}`);
+    } catch (err) {
+      console.error('[AutoPing] Failed:', err.message);
+    }
+  }, 10 * 60 * 1000); // 10 minutes
 });
 
 module.exports = { app, io };
