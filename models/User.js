@@ -41,8 +41,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     avatar: {
-      public_id: { type: String, default: '' },
-      url: { type: String, default: '' },
+      type: String,
     },
     isActive: {
       type: Boolean,

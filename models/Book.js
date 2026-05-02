@@ -61,8 +61,8 @@ const bookSchema = new mongoose.Schema(
       default: 1,
     },
     coverImage: {
-      public_id: { type: String, default: '' },
-      url: { type: String, default: '' },
+      type: String,
+      default: '',
     },
     averageRating: {
       type: Number,

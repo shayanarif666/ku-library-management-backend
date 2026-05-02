@@ -89,11 +89,19 @@ const addBook = asyncHandler(async (req, res) => {
     availableCopies: parseInt(totalCopies) || 1,
   };
 
+  console.log(req.file);
+
   if (req.file) {
-    bookData.coverImage = {
-      public_id: req.file.filename,
-      url: req.file.path,
-    };
+    try {
+      const image = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'KU Library',
+        resource_type: 'auto',
+      });
+      console.log("Cloudinary upload result:", image);
+      bookData.coverImage = image?.secure_url;
+    } catch (error) {
+      console.error("Cloudinary upload failed:", error);
+    }
   }
 
   const book = await Book.create(bookData);
@@ -130,13 +138,17 @@ const updateBook = asyncHandler(async (req, res) => {
   }
 
   if (req.file) {
-    if (book.coverImage?.public_id) {
-      await cloudinary.uploader.destroy(book.coverImage.public_id);
+    if (book.coverImage) {
+      await cloudinary.uploader.destroy(book.coverImage);
     }
-    rest.coverImage = { public_id: req.file.filename, url: req.file.path };
+    const image = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'KU Library',
+      resource_type: 'auto',
+    });
+    rest.coverImage = image?.secure_url;
   }
 
-  const updated = await Book.findByIdAndUpdate(req.params.id, rest, { new: true, runValidators: true });
+  const updated = await Book.findByIdAndUpdate({ _id: req.params.id }, rest, { new: true, runValidators: true });
 
   await log({
     userId: req.user._id,

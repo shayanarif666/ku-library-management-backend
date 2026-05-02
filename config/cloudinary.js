@@ -1,29 +1,16 @@
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
+const os = require("os");
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  api_key: process.env.CLOUDINARY_CLOUD_API_KEY,
+  api_secret: process.env.CLOUDINARY_CLOUD_API_SECRET,
 });
 
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: 'library/books',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [{ width: 400, height: 560, crop: 'fill' }],
-  },
-});
-
-const avatarStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: 'library/avatars',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [{ width: 200, height: 200, crop: 'fill' }],
-  },
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, os.tmpdir()),
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 
 const uploadBookCover = multer({
@@ -32,7 +19,7 @@ const uploadBookCover = multer({
 });
 
 const uploadAvatar = multer({
-  storage: avatarStorage,
+  storage,
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 

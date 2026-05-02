@@ -26,10 +26,14 @@ const updateProfile = asyncHandler(async (req, res) => {
   if (phone !== undefined) updateData.phone = phone;
 
   if (req.file) {
-    if (req.user.avatar?.public_id) {
-      await cloudinary.uploader.destroy(req.user.avatar.public_id);
+    if (req.user.avatar) {
+      await cloudinary.uploader.destroy(req.user.avatar);
     }
-    updateData.avatar = { public_id: req.file.filename, url: req.file.path };
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'KU Library',
+      resource_type: 'image',
+    });
+    updateData.avatar = result.url;
   }
 
   const user = await User.findByIdAndUpdate(req.user._id, updateData, {

@@ -24,6 +24,10 @@ const reviewSchema = new mongoose.Schema(
       maxlength: [1000, 'Comment cannot exceed 1000 characters'],
       default: '',
     },
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
@@ -31,11 +35,11 @@ const reviewSchema = new mongoose.Schema(
 // One review per user per book
 reviewSchema.index({ book: 1, user: 1 }, { unique: true });
 
-// After save, update book's average rating
+// After save, update book's average rating (only approved reviews count)
 reviewSchema.post('save', async function () {
   const Book = mongoose.model('Book');
   const stats = await mongoose.model('Review').aggregate([
-    { $match: { book: this.book } },
+    { $match: { book: this.book, isApproved: true } },
     { $group: { _id: '$book', avg: { $avg: '$rating' }, count: { $sum: 1 } } },
   ]);
   if (stats.length > 0) {

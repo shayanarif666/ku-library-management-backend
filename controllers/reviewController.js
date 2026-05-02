@@ -5,20 +5,26 @@ const { log } = require('../utils/activityLogger');
 
 // @desc    Get reviews for a book
 // @route   GET /api/reviews/book/:bookId
-// @access  Public
+// @access  Public (only approved) | Admin (all when ?all=true)
 const getBookReviews = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, all = 'false' } = req.query;
   const pageNum = Math.max(1, parseInt(page));
   const limitNum = Math.min(20, parseInt(limit));
   const skip = (pageNum - 1) * limitNum;
 
+  const isAdmin = req.user && ['admin', 'superadmin'].includes(req.user.role);
+  const showAll = isAdmin && all === 'true';
+
+  const query = { book: req.params.bookId };
+  if (!showAll) query.isApproved = true;
+
   const [reviews, total] = await Promise.all([
-    Review.find({ book: req.params.bookId })
+    Review.find(query)
       .populate('user', 'name avatar')
       .sort('-createdAt')
       .skip(skip)
       .limit(limitNum),
-    Review.countDocuments({ book: req.params.bookId }),
+    Review.countDocuments(query),
   ]);
 
   res.json({
@@ -56,6 +62,7 @@ const addReview = asyncHandler(async (req, res) => {
     user: req.user._id,
     rating: parseInt(rating),
     comment,
+    isApproved: false, // pending admin approval
   });
 
   const populated = await review.populate('user', 'name avatar');
@@ -63,7 +70,7 @@ const addReview = asyncHandler(async (req, res) => {
   await log({
     userId: req.user._id,
     action: 'REVIEW_ADDED',
-    details: `Reviewed book (rating: ${rating})`,
+    details: `Reviewed book (rating: ${rating}) — pending approval`,
     entityType: 'Review',
     entityId: review._id,
     ip: req.ip,
@@ -85,6 +92,8 @@ const updateReview = asyncHandler(async (req, res) => {
 
   if (req.body.rating) review.rating = parseInt(req.body.rating);
   if (req.body.comment !== undefined) review.comment = req.body.comment;
+  // Reset approval on edit so admin re-checks
+  review.isApproved = false;
   await review.save();
 
   res.json({ success: true, data: review });
@@ -107,4 +116,17 @@ const deleteReview = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Review deleted' });
 });
 
-module.exports = { getBookReviews, addReview, updateReview, deleteReview };
+// @desc    Get latest approved reviews across all books (for Home page)
+// @route   GET /api/reviews/recent?limit=6
+// @access  Public
+const getRecentReviews = asyncHandler(async (req, res) => {
+  const limit = Math.min(12, parseInt(req.query.limit) || 6);
+  const reviews = await Review.find({ isApproved: true, comment: { $ne: '' } })
+    .populate('user', 'name')
+    .populate('book', 'title author')
+    .sort('-createdAt')
+    .limit(limit);
+  res.json({ success: true, data: reviews });
+});
+
+module.exports = { getBookReviews, addReview, updateReview, deleteReview, getRecentReviews };

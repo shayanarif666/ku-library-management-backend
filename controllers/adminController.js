@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Book = require('../models/Book');
 const Issue = require('../models/Issue');
 const Fine = require('../models/Fine');
+const Review = require('../models/Review');
 const ActivityLog = require('../models/ActivityLog');
 const { log } = require('../utils/activityLogger');
 
@@ -201,4 +202,92 @@ const getActivityLogs = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getDashboard, getUsers, toggleUserStatus, updateUserRole, getActivityLogs };
+// @desc    Get all reviews (pending or approved, optionally filtered by book)
+// @route   GET /api/admin/reviews?status=pending|approved|all&book=<bookId>
+// @access  Admin
+const getReviews = asyncHandler(async (req, res) => {
+  const { status = 'pending', book: bookId, page = 1, limit = 20 } = req.query;
+  const pageNum = Math.max(1, parseInt(page));
+  const limitNum = Math.min(50, parseInt(limit));
+  const skip = (pageNum - 1) * limitNum;
+
+  const query = {};
+  if (status === 'approved') query.isApproved = true;
+  else if (status === 'pending') query.isApproved = false;
+  // status === 'all' → no isApproved filter (used by book detail page)
+  if (bookId) query.book = bookId;
+
+  const [reviews, total] = await Promise.all([
+    Review.find(query)
+      .populate('book', 'title author coverImage')
+      .populate('user', 'name email studentId')
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(limitNum),
+    Review.countDocuments(query),
+  ]);
+
+  res.json({
+    success: true,
+    data: reviews,
+    pagination: { total, page: pageNum, pages: Math.ceil(total / limitNum), limit: limitNum },
+  });
+});
+
+// @desc    Approve or reject a review
+// @route   PUT /api/admin/reviews/:id/approve
+// @access  Admin
+const approveReview = asyncHandler(async (req, res) => {
+  const { approve } = req.body; // boolean
+
+  const review = await Review.findById(req.params.id)
+    .populate('book', 'title')
+    .populate('user', 'name');
+
+  if (!review) {
+    res.status(404);
+    throw new Error('Review not found');
+  }
+
+  review.isApproved = Boolean(approve);
+  await review.save(); // triggers post-save → updates book rating
+
+  await log({
+    userId: req.user._id,
+    action: approve ? 'REVIEW_APPROVED' : 'REVIEW_REJECTED',
+    details: `${approve ? 'Approved' : 'Rejected'} review by ${review.user?.name} on "${review.book?.title}"`,
+    entityType: 'Review',
+    entityId: review._id,
+    ip: req.ip,
+  });
+
+  res.json({ success: true, data: review });
+});
+
+// @desc    Delete a review (admin)
+// @route   DELETE /api/admin/reviews/:id
+// @access  Admin
+const deleteReviewAdmin = asyncHandler(async (req, res) => {
+  const review = await Review.findById(req.params.id);
+  if (!review) {
+    res.status(404);
+    throw new Error('Review not found');
+  }
+  await review.deleteOne();
+
+  await log({
+    userId: req.user._id,
+    action: 'REVIEW_DELETED',
+    details: `Admin deleted review id: ${req.params.id}`,
+    entityType: 'Review',
+    entityId: req.params.id,
+    ip: req.ip,
+  });
+
+  res.json({ success: true, message: 'Review deleted' });
+});
+
+module.exports = {
+  getDashboard, getUsers, toggleUserStatus, updateUserRole, getActivityLogs,
+  getReviews, approveReview, deleteReviewAdmin,
+};

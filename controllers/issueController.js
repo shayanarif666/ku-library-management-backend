@@ -15,11 +15,12 @@ const RESERVATION_EXPIRY_HOURS = parseInt(process.env.RESERVATION_EXPIRY_HOURS) 
 // @route   GET /api/issues
 // @access  Private
 const getIssues = asyncHandler(async (req, res) => {
-  const { status, page = 1, limit = 15 } = req.query;
+  const { status, book: bookId, page = 1, limit = 15 } = req.query;
   const query = {};
 
   if (req.user.role === 'student') query.user = req.user._id;
   if (status) query.status = status;
+  if (bookId) query.book = bookId;
 
   const pageNum = Math.max(1, parseInt(page));
   const limitNum = Math.min(50, parseInt(limit));
