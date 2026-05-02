@@ -27,7 +27,7 @@ const httpServer = http.createServer(app);
 
 // ── CORS: support comma-separated list of allowed origins ──────────────────
 // On Render set CLIENT_URL=https://yourfrontend.com,http://localhost:5173
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173' || 'https://ku-library-management-frontend.onrender.com')
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173' || 'https://karachi-university-library-manageme.vercel.app')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
