@@ -8,7 +8,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
-const axios = require('axios'); 
+const axios = require('axios');
 
 const authRoutes = require('./routes/authRoutes');
 const bookRoutes = require('./routes/bookRoutes');
@@ -27,7 +27,7 @@ const httpServer = http.createServer(app);
 
 // ── CORS: support comma-separated list of allowed origins ──────────────────
 // On Render set CLIENT_URL=https://yourfrontend.com,http://localhost:5173
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173' || 'https://ku-library-management-frontend.onrender.com')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
